@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS users (
     last_name text,
     suffix text,
     phone text,
+    avatar_url text,
+    gender text,
+    birthdate text,
     address_line1 text,
     address_line2 text,
     city text,
@@ -44,7 +47,16 @@ CREATE TABLE IF NOT EXISTS sellers (
     declined_at timestamptz,
     declined_by bigint REFERENCES users(id) ON DELETE SET NULL,
     decline_reason text,
-    store_name text
+    store_name text,
+    store_description text,
+    store_logo text,
+    store_banner text,
+    support_phone text,
+    support_email text,
+    tax_id text,
+    payout_method text,
+    bank_account_name text,
+    bank_account_number text
 );
 
 CREATE TABLE IF NOT EXISTS riders (
@@ -69,7 +81,15 @@ CREATE TABLE IF NOT EXISTS riders (
     missing_requirements text,
     declined_at timestamptz,
     declined_by bigint REFERENCES users(id) ON DELETE SET NULL,
-    decline_reason text
+    decline_reason text,
+    phone text,
+    avatar_url text,
+    address_line1 text,
+    city text,
+    province text,
+    region text,
+    status text,
+    license_expiry text
 );
 
 CREATE TABLE IF NOT EXISTS suppliers (
