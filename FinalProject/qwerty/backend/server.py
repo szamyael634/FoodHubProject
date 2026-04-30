@@ -12,6 +12,7 @@ from flask_cors import CORS
 from .auth import generate_token, token_required, role_required, REFRESH_TOKEN_EXP_DAYS, verify_token, get_token_from_request
 from .api_utils import success_response, error_response, format_row, format_rows
 from .validators import validate_email, validate_password, validate_name
+from .validators import normalize_account_role
 from .email_service import generate_otp, store_otp, send_otp_email, verify_otp, revoke_otp, send_welcome_email
 import os
 import pymysql
@@ -4445,7 +4446,7 @@ def api_register():
     body = request.json or {}
     email = body.get('email')
     password = body.get('password')
-    role = body.get('role','customer')
+    role = normalize_account_role(body.get('role', 'buyer'))
     first = body.get('first_name','')
     last = body.get('last_name','')
     if not email or not password:

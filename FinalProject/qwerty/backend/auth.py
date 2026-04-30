@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from functools import wraps
 from flask import request, jsonify, g
 
+from .validators import legacy_token_role
+
 # Secret key for JWT signing - MUST be set in production
 _jwt_secret = os.environ.get('JWT_SECRET')
 if not _jwt_secret:
@@ -20,7 +22,7 @@ def generate_token(user_id, role, email):
     """Generate JWT token for a user."""
     payload = {
         'user_id': user_id,
-        'role': role,
+        'role': legacy_token_role(role),
         'email': email,
         'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRY_HOURS),
         'iat': datetime.utcnow()
@@ -64,7 +66,7 @@ def token_required(f):
         
         # Store user info in Flask's g object for this request
         g.user_id = payload.get('user_id')
-        g.role = payload.get('role')
+        g.role = legacy_token_role(payload.get('role'))
         g.email = payload.get('email')
         
         return f(*args, **kwargs)
@@ -83,8 +85,9 @@ def role_required(*roles):
             if not payload:
                 return jsonify({'error': 'unauthorized', 'message': 'Invalid or expired token'}), 401
             
-            user_role = payload.get('role')
-            if user_role not in roles:
+            user_role = legacy_token_role(payload.get('role'))
+            normalized_roles = {legacy_token_role(role) for role in roles}
+            if user_role not in normalized_roles:
                 return jsonify({'error': 'forbidden', 'message': f'Role {user_role} not permitted'}), 403
             
             # Store user info in Flask's g object

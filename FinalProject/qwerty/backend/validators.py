@@ -152,12 +152,33 @@ def validate_address(address: str) -> Tuple[bool, str]:
 
 def validate_role(role: str) -> Tuple[bool, str]:
     """Validate user role."""
-    valid_roles = ['customer', 'seller', 'rider', 'admin']
+    role = normalize_account_role(role)
+    valid_roles = ['buyer', 'seller', 'rider', 'admin']
     
     if not role or role not in valid_roles:
         return False, f'Invalid role. Must be one of: {", ".join(valid_roles)}'
     
     return True, ''
+
+def normalize_account_role(role: str) -> str:
+    """Normalize legacy customer role names to the canonical buyer role."""
+    if not role:
+        return role
+
+    normalized_role = role.strip().lower()
+    if normalized_role == 'customer':
+        return 'buyer'
+    return normalized_role
+
+def legacy_token_role(role: str) -> str:
+    """Map canonical buyer roles back to the legacy customer token role."""
+    if not role:
+        return role
+
+    normalized_role = role.strip().lower()
+    if normalized_role == 'buyer':
+        return 'customer'
+    return normalized_role
 
 def validate_order_status(status: str) -> Tuple[bool, str]:
     """Validate order status."""
