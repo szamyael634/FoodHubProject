@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Direct database script to create test accounts for sellers and riders.
+Direct database script to create seed accounts for admin, buyer, seller, and rider.
 This script directly accesses the database without needing authentication.
 """
 
@@ -61,14 +61,15 @@ def create_test_accounts():
         cursor = db.cursor()
         
         created_accounts = {
+            'admins': [],
+            'buyers': [],
             'sellers': [],
             'riders': []
         }
         
-        # Delete existing test accounts first
+        # Delete existing seed accounts first
         test_emails = [
-            'test-seller-1@test.com', 'test-seller-2@test.com', 'test-seller-3@test.com',
-            'test-rider-1@test.com', 'test-rider-2@test.com', 'test-rider-3@test.com'
+            'admin', 'buyer', 'seller', 'rider'
         ]
         
         print("🗑️  Deleting existing test accounts...")
@@ -93,118 +94,181 @@ def create_test_accounts():
             except Exception as del_err:
                 print(f"   ⚠️  Warning: Could not delete {email}: {del_err}")
         
-        # Create 3 test seller accounts
-        print("\n🏪 Creating seller accounts...")
-        seller_data = [
-            {'email': 'test-seller-1@test.com', 'first_name': 'Test', 'last_name': 'Seller One', 'business_name': 'Test Store One', 'category': 'Food'},
-            {'email': 'test-seller-2@test.com', 'first_name': 'Test', 'last_name': 'Seller Two', 'business_name': 'Test Store Two', 'category': 'Electronics'},
-            {'email': 'test-seller-3@test.com', 'first_name': 'Test', 'last_name': 'Seller Three', 'business_name': 'Test Store Three', 'category': 'Clothing'}
-        ]
-        
-        for seller_info in seller_data:
-            email = seller_info['email']
-            password_hash = generate_password_hash('test123')
-            
-            try:
-                # Create user account
-                if DB_ENGINE == 'mysql':
-                    cursor.execute('''
-                        INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified, is_active)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ''', (email, password_hash, seller_info['first_name'], seller_info['last_name'], 'seller', 1, 1))
-                    user_id = cursor.lastrowid
-                else:
-                    cursor.execute('''
-                        INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified, is_active)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (email, password_hash, seller_info['first_name'], seller_info['last_name'], 'seller', 1, 1))
-                    user_id = cursor.lastrowid
-                
-                # Create seller profile
-                if DB_ENGINE == 'mysql':
-                    cursor.execute('''
-                        INSERT INTO sellers (user_id, business_name, category, verified, shop_status)
-                        VALUES (%s, %s, %s, 1, 'active')
-                    ''', (user_id, seller_info['business_name'], seller_info['category']))
-                    seller_id = cursor.lastrowid
-                else:
-                    cursor.execute('''
-                        INSERT INTO sellers (user_id, business_name, category, verified, shop_status)
-                        VALUES (?, ?, ?, 1, 'active')
-                    ''', (user_id, seller_info['business_name'], seller_info['category']))
-                    seller_id = cursor.lastrowid
-                
-                created_accounts['sellers'].append({
-                    'email': email,
-                    'password': 'test123',
-                    'user_id': user_id,
-                    'seller_id': seller_id,
-                    'business_name': seller_info['business_name']
-                })
-                print(f"   ✅ Created: {email} (ID: {seller_id})")
-            except Exception as err:
-                print(f"   ❌ Failed to create {email}: {err}")
-        
-        # Create 3 test rider accounts
-        print("\n🚴 Creating rider accounts...")
-        rider_data = [
-            {'email': 'test-rider-1@test.com', 'first_name': 'Test', 'last_name': 'Rider One', 'vehicle_type': 'Motorcycle', 'driver_license': 'DL001'},
-            {'email': 'test-rider-2@test.com', 'first_name': 'Test', 'last_name': 'Rider Two', 'vehicle_type': 'Bicycle', 'driver_license': 'DL002'},
-            {'email': 'test-rider-3@test.com', 'first_name': 'Test', 'last_name': 'Rider Three', 'vehicle_type': 'Car', 'driver_license': 'DL003'}
-        ]
-        
-        for rider_info in rider_data:
-            email = rider_info['email']
-            password_hash = generate_password_hash('test123')
-            
-            try:
-                # Create user account
-                if DB_ENGINE == 'mysql':
-                    cursor.execute('''
-                        INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified, is_active)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ''', (email, password_hash, rider_info['first_name'], rider_info['last_name'], 'rider', 1, 1))
-                    user_id = cursor.lastrowid
-                else:
-                    cursor.execute('''
-                        INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified, is_active)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (email, password_hash, rider_info['first_name'], rider_info['last_name'], 'rider', 1, 1))
-                    user_id = cursor.lastrowid
-                
-                # Create rider profile
-                if DB_ENGINE == 'mysql':
-                    cursor.execute('''
-                        INSERT INTO riders (user_id, vehicle_type, driver_license, verified, rider_status, availability)
-                        VALUES (%s, %s, %s, 1, 'active', 'available')
-                    ''', (user_id, rider_info['vehicle_type'], rider_info['driver_license']))
-                    rider_id = cursor.lastrowid
-                else:
-                    cursor.execute('''
-                        INSERT INTO riders (user_id, vehicle_type, driver_license, verified, rider_status, availability)
-                        VALUES (?, ?, ?, 1, 'active', 'available')
-                    ''', (user_id, rider_info['vehicle_type'], rider_info['driver_license']))
-                    rider_id = cursor.lastrowid
-                
-                created_accounts['riders'].append({
-                    'email': email,
-                    'password': 'test123',
-                    'user_id': user_id,
-                    'rider_id': rider_id,
-                    'vehicle_type': rider_info['vehicle_type']
-                })
-                print(f"   ✅ Created: {email} (ID: {rider_id})")
-            except Exception as err:
-                print(f"   ❌ Failed to create {email}: {err}")
-        
+        # Create admin account
+        print("\n👑 Creating admin account...")
+        admin_info = {
+            'email': 'admin',
+            'password': 'admin123',
+            'first_name': 'System',
+            'last_name': 'Admin'
+        }
+        admin_password_hash = generate_password_hash(admin_info['password'])
+
+        try:
+            if DB_ENGINE == 'mysql':
+                cursor.execute('''
+                    INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (admin_info['email'], admin_password_hash, admin_info['first_name'], admin_info['last_name'], 'admin', 1))
+            else:
+                cursor.execute('''
+                    INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (admin_info['email'], admin_password_hash, admin_info['first_name'], admin_info['last_name'], 'admin', 1))
+            admin_id = cursor.lastrowid
+            created_accounts['admins'].append({
+                'email': admin_info['email'],
+                'password': admin_info['password'],
+                'user_id': admin_id
+            })
+            print(f"   ✅ Created: {admin_info['email']} (ID: {admin_id})")
+        except Exception as err:
+            print(f"   ❌ Failed to create admin account: {err}")
+
+        # Create buyer account
+        print("\n🛒 Creating buyer account...")
+        buyer_info = {
+            'email': 'buyer',
+            'password': 'buyer123',
+            'first_name': 'Seed',
+            'last_name': 'Buyer'
+        }
+        buyer_password_hash = generate_password_hash(buyer_info['password'])
+
+        try:
+            if DB_ENGINE == 'mysql':
+                cursor.execute('''
+                    INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (buyer_info['email'], buyer_password_hash, buyer_info['first_name'], buyer_info['last_name'], 'buyer', 1))
+            else:
+                cursor.execute('''
+                    INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (buyer_info['email'], buyer_password_hash, buyer_info['first_name'], buyer_info['last_name'], 'buyer', 1))
+            buyer_id = cursor.lastrowid
+            created_accounts['buyers'].append({
+                'email': buyer_info['email'],
+                'password': buyer_info['password'],
+                'user_id': buyer_id
+            })
+            print(f"   ✅ Created: {buyer_info['email']} (ID: {buyer_id})")
+        except Exception as err:
+            print(f"   ❌ Failed to create buyer account: {err}")
+
+        # Create seller account
+        print("\n🏪 Creating seller account...")
+        seller_info = {
+            'email': 'seller',
+            'password': 'seller 123',
+            'first_name': 'Seed',
+            'last_name': 'Seller',
+            'business_name': 'Seed Seller Store',
+            'category': 'Food'
+        }
+        seller_password_hash = generate_password_hash(seller_info['password'])
+
+        try:
+            if DB_ENGINE == 'mysql':
+                cursor.execute('''
+                    INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (seller_info['email'], seller_password_hash, seller_info['first_name'], seller_info['last_name'], 'seller', 1))
+            else:
+                cursor.execute('''
+                    INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (seller_info['email'], seller_password_hash, seller_info['first_name'], seller_info['last_name'], 'seller', 1))
+            seller_user_id = cursor.lastrowid
+
+            if DB_ENGINE == 'mysql':
+                cursor.execute('''
+                    INSERT INTO sellers (user_id, business_name, category, verified, shop_status)
+                    VALUES (%s, %s, %s, 1, 'active')
+                ''', (seller_user_id, seller_info['business_name'], seller_info['category']))
+            else:
+                cursor.execute('''
+                    INSERT INTO sellers (user_id, business_name, category, verified, shop_status)
+                    VALUES (?, ?, ?, 1, 'active')
+                ''', (seller_user_id, seller_info['business_name'], seller_info['category']))
+            seller_id = cursor.lastrowid
+            created_accounts['sellers'].append({
+                'email': seller_info['email'],
+                'password': seller_info['password'],
+                'user_id': seller_user_id,
+                'seller_id': seller_id,
+                'business_name': seller_info['business_name']
+            })
+            print(f"   ✅ Created: {seller_info['email']} (ID: {seller_id})")
+        except Exception as err:
+            print(f"   ❌ Failed to create seller account: {err}")
+
+        # Create rider account
+        print("\n🚴 Creating rider account...")
+        rider_info = {
+            'email': 'rider',
+            'password': 'rider123',
+            'first_name': 'Seed',
+            'last_name': 'Rider',
+            'vehicle_type': 'Motorcycle',
+            'driver_license': 'RID-SEED-001'
+        }
+        rider_password_hash = generate_password_hash(rider_info['password'])
+
+        try:
+            if DB_ENGINE == 'mysql':
+                cursor.execute('''
+                    INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (rider_info['email'], rider_password_hash, rider_info['first_name'], rider_info['last_name'], 'rider', 1))
+            else:
+                cursor.execute('''
+                    INSERT INTO users (email, password_hash, first_name, last_name, role, is_verified)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (rider_info['email'], rider_password_hash, rider_info['first_name'], rider_info['last_name'], 'rider', 1))
+            rider_user_id = cursor.lastrowid
+
+            if DB_ENGINE == 'mysql':
+                cursor.execute('''
+                    INSERT INTO riders (user_id, vehicle_type, driver_license, verified, rider_status, availability)
+                    VALUES (%s, %s, %s, 1, 'active', 'available')
+                ''', (rider_user_id, rider_info['vehicle_type'], rider_info['driver_license']))
+            else:
+                cursor.execute('''
+                    INSERT INTO riders (user_id, vehicle_type, driver_license, verified, rider_status, availability)
+                    VALUES (?, ?, ?, 1, 'active', 'available')
+                ''', (rider_user_id, rider_info['vehicle_type'], rider_info['driver_license']))
+            rider_id = cursor.lastrowid
+            created_accounts['riders'].append({
+                'email': rider_info['email'],
+                'password': rider_info['password'],
+                'user_id': rider_user_id,
+                'rider_id': rider_id,
+                'vehicle_type': rider_info['vehicle_type']
+            })
+            print(f"   ✅ Created: {rider_info['email']} (ID: {rider_id})")
+        except Exception as err:
+            print(f"   ❌ Failed to create rider account: {err}")
         # Commit the transaction
         db.commit()
         cursor.close()
         db.close()
-        
-        print(f"\n✨ Successfully created {len(created_accounts['sellers'])} seller accounts and {len(created_accounts['riders'])} rider accounts!")
-        
+
+        print(
+            f"\n✨ Successfully created {len(created_accounts['admins'])} admin, "
+            f"{len(created_accounts['buyers'])} buyer, {len(created_accounts['sellers'])} seller, "
+            f"and {len(created_accounts['riders'])} rider account(s)!"
+        )
+
         print(f"\n📋 Account Summary:")
+        print(f"\n👑 Admin Account:")
+        for admin in created_accounts['admins']:
+            print(f"   - {admin['email']} | Password: {admin['password']}")
+
+        print(f"\n🛒 Buyer Account:")
+        for buyer in created_accounts['buyers']:
+            print(f"   - {buyer['email']} | Password: {buyer['password']}")
+
         print(f"\n🏪 Seller Accounts:")
         for seller in created_accounts['sellers']:
             print(f"   - {seller['email']} | Password: {seller['password']} | Business: {seller['business_name']}")
