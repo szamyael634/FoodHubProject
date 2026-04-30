@@ -2,7 +2,7 @@
 
 ## System Requirements
 - Python 3.8+
-- SQLite3 (built-in) or MySQL 5.7+
+- Supabase project with Postgres access
 - Windows, macOS, or Linux
 
 ## Installation Steps
@@ -34,23 +34,11 @@ Copy-Item qwerty\.env.example qwerty\.env
 
 ### Step 5: Initialize Database
 
-#### Option A: SQLite (Default - No Setup Required)
-Database will be created automatically on first run.
-
-#### Option B: MySQL with XAMPP
-1. Start XAMPP Control Panel
-2. Start Apache and MySQL
-3. Open phpMyAdmin: http://localhost/phpmyadmin
-4. Create database: `qwerty`
-5. Import schema: Go to Import tab → Select `qwerty\db\schema_mysql.sql`
-6. Set environment variables in `.env`:
-```
-DB_ENGINE=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_USER=root
-DB_PASS=
-DB_NAME=qwerty
+1. Create or open your Supabase project.
+2. Add the Supabase Postgres connection details to `.env`.
+3. Apply the schema:
+```powershell
+python scripts/setup_supabase.py
 ```
 
 ### Step 6: Start Server
@@ -94,7 +82,7 @@ qwerty/
 │       └── [other scripts]
 ├── db/
 │   ├── schema.sql             # SQLite schema
-│   └── schema_mysql.sql       # MySQL schema
+│   └── schema_supabase.sql    # Supabase/Postgres schema
 ├── .env                       # Configuration (not in git)
 ├── .env.example              # Configuration template (NEW)
 ├── requirements.txt          # Python dependencies
@@ -171,6 +159,8 @@ OTP Code: 123456
 
 **refresh_tokens**
 - id, user_id (FK), token_hash, expires_at, revoked, created_at
+
+The Supabase schema also includes compatibility tables used by the backend during setup and runtime, including `cart_items`, `conversations`, `messages`, `notifications`, `verification_documents`, `return_refund_requests`, `customer_reviews`, and `rider_reviews`.
 
 ---
 

@@ -24,6 +24,8 @@ import uuid
 import atexit
 from dotenv import load_dotenv
 
+from .supabase_compat import create_supabase_connection, supabase_configured
+
 # Detect templates/static folders (basic detection)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(SCRIPT_DIR)
@@ -68,14 +70,15 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 SERVER_INSTANCE_ID = str(uuid.uuid4())
 SERVER_START_TIME = datetime.utcnow().isoformat()
 
-# Database connection helpers - MySQL only
-# Force MySQL database (SQLite support removed)
+# Database connection helpers - Supabase/Postgres with legacy MySQL-compatible SQL paths
 DB_ENGINE = 'mysql'
 
 def get_db_connection():
-    """Get MySQL database connection"""
+    """Get the active database connection (Supabase/Postgres when configured)."""
     try:
-        import pymysql
+        if supabase_configured():
+            return create_supabase_connection()
+
         conn = pymysql.connect(
             host=os.environ.get('DB_HOST', '127.0.0.1'),
             user=os.environ.get('DB_USER', 'root'),
@@ -87,7 +90,7 @@ def get_db_connection():
         )
         return conn
     except Exception as e:
-        app.logger.error(f"MySQL connection error: {e}")
+        app.logger.error(f"Database connection error: {e}")
         raise
 
 def close_db_connection(conn):
@@ -2514,9 +2517,9 @@ def get_query_param(key, default=None, cast=str, min_len=None, max_len=None, all
         return default
 
 def get_db():
-    """Get MySQL database connection from Flask g context"""
+    """Get the active database connection from Flask g context"""
     if 'db' not in g:
-        g.db = pymysql.connect(**MYSQL_CONFIG)
+        g.db = get_db_connection()
     return g.db
 
 def get_db_connection():
@@ -2568,26 +2571,24 @@ def clear_all_sessions():
         pass
 
 def init_db():
-    """Initialize MySQL database - schema should be imported via MySQL client"""
-    # For MySQL, user will import schema_mysql.sql via XAMPP or MySQL client
-    # Server will only seed some data if DB exists
-    schema_path = os.path.join(BASE_DIR, 'database', 'schema_mysql.sql')
+    """Initialize the configured database schema."""
+    schema_path = os.path.join(BASE_DIR, 'database', 'schema_supabase.sql')
     
     conn = None
     try:
         conn = get_db()
         cur = conn.cursor()
         
-        # MySQL migration support
+        # Schema migration support
         if os.environ.get('MIGRATE','0') == '1':
-            mysql_sql = os.path.join(BASE_DIR, 'database', 'schema_mysql.sql')
-            if os.path.exists(mysql_sql):
-                with open(mysql_sql, 'r', encoding='utf-8') as f:
+            supabase_sql = os.path.join(BASE_DIR, 'database', 'schema_supabase.sql')
+            if os.path.exists(supabase_sql):
+                with open(supabase_sql, 'r', encoding='utf-8') as f:
                     sql = f.read()
                 # Execute each statement separately to avoid multi-statement failures
                 for stmt in [s.strip() for s in sql.split(';') if s.strip()]:
                     cur.execute(stmt)
-        # For MySQL, we assume the user runs schema_mysql.sql via client; but we create a small seed if table exists
+        # Seed data only if the expected tables exist.
         cur.execute("SELECT 1")
         print("[COMMIT] Committing changes...")
         conn.commit()
@@ -2595,7 +2596,7 @@ def init_db():
         cur.close()
         
         # Seed data using same connection
-        # For MySQL, only seed if tables exist and MIGRATE is set
+        # Only seed if tables exist and MIGRATE is set
         should_seed = False
         if os.environ.get('MIGRATE','0') == '1':
             # Check if users table exists before seeding
@@ -3394,9 +3395,11 @@ def api_cart_endpoint(current_user=None):
         try:
             if DB_ENGINE == 'mysql':
                 cur.execute("""
-                    SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS
-                    WHERE TABLE_SCHEMA = %s AND TABLE_NAME = 'cart_items' AND COLUMN_NAME = 'variation_id'
-                """, (MYSQL_CONFIG.get('db'),))
+                    SELECT COUNT(*) as cnt FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'cart_items'
+                      AND column_name = 'variation_id'
+                """)
                 r = cur.fetchone()
                 try:
                     has_variation = int(r.get('cnt') if hasattr(r, 'get') else r[0]) > 0

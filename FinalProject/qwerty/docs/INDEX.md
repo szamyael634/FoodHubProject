@@ -25,13 +25,12 @@
 - **[QUICK_START_TESTING.md](QUICK_START_TESTING.md)** - Start server, test one flow
 - **[SYSTEM_DELIVERY_SUMMARY.md](SYSTEM_DELIVERY_SUMMARY.md)** - What was built
 - **[QUICK_INTEGRATION_GUIDE.md](QUICK_INTEGRATION_GUIDE.md)** - Integration steps
-- **[MYSQL_DEPLOYMENT.md](MYSQL_DEPLOYMENT.md)** - MySQL setup for production
+- **[MYSQL_DEPLOYMENT.md](MYSQL_DEPLOYMENT.md)** - Legacy MySQL setup for production
 
-### Production Database (MySQL)
-- **[MYSQL_DEPLOYMENT.md](MYSQL_DEPLOYMENT.md)** - Quick 3-step MySQL migration
-- **[MYSQL_SETUP_GUIDE.md](MYSQL_SETUP_GUIDE.md)** - Detailed setup & troubleshooting
-- **migrate_to_mysql.py** - Automated migration script
-- **verify_mysql_data.py** - Data verification tool
+### Production Database (Supabase)
+- **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Detailed Supabase setup & troubleshooting
+- **database/schema_supabase.sql** - Canonical Supabase schema
+- **scripts/setup_supabase.py** - Automated schema setup script
 
 ### Detailed Testing (45 minutes)
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Step-by-step for all 4 roles
@@ -830,7 +829,7 @@ Hub e-commerce platform - Complete e-commerce solution with ERP integration
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript
 - **Backend**: Python, Flask, SQLite/MySQL
 - **Authentication**: JWT tokens with refresh
-- **Database**: SQLite (dev) / MySQL (production)
+- **Database**: SQLite (dev) / Supabase Postgres (production)
 
 ---
 

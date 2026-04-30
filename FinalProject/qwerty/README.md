@@ -2,7 +2,7 @@
 
 A complete, production-ready e-commerce platform with multi-role support, real-time order tracking, payment processing, and comprehensive admin analytics.
 
-**🔥 Now with MySQL Support!** - Configured for production use with MySQL database.
+**🔥 Now with Supabase Support!** - Configured to use Supabase/Postgres as the primary database.
 
 ## 📁 Project Structure
 
@@ -34,22 +34,20 @@ qwerty/
 │
 ├── database/                   # Database files & migrations
 │   ├── schema.sql             # SQLite schema
-│   ├── schema_mysql.sql       # MySQL schema (UPDATED)
-│   ├── migrate_to_mysql.py    # Migration script
+│   ├── schema_supabase.sql    # Supabase/Postgres schema
+│   ├── schema_mysql.sql       # Legacy MySQL schema (reference only)
 │   └── migrate_add_otp_columns.py  # OTP column migration
 │
 ├── docs/                       # Documentation (25 files)
 │   ├── API_DOCUMENTATION.md
 │   ├── SETUP_GUIDE.md
-│   ├── MYSQL_SETUP_GUIDE.md
+│   ├── SETUP_GUIDE.md
 │   ├── QUICK_START_TESTING.md
 │   └── [20 more comprehensive guides]
 │
-├── setup_mysql.py              # MySQL setup automation (NEW)
-├── test_mysql.py               # MySQL connection test (NEW)
-├── MYSQL_MIGRATION.md          # MySQL quick start guide (NEW)
-├── MYSQL_SETUP.md              # MySQL detailed guide (NEW)
-├── .env                        # Environment variables (MYSQL ENABLED)
+├── scripts/setup_supabase.py    # Supabase setup automation
+├── scripts/setup_mysql.py       # Compatibility wrapper for Supabase setup
+├── .env                        # Environment variables (Supabase enabled)
 ├── requirements.txt            # Python dependencies
 ├── run.py                      # Main startup script
 ├── qwerty.db                   # SQLite database (dev fallback)
@@ -61,60 +59,43 @@ qwerty/
 ### Prerequisites
 
 - **Python 3.8+** installed
-- **MySQL Server** running (XAMPP recommended for Windows)
+- **Supabase project** with Postgres connection details
 - **pip** package manager
 
-### Option 1: MySQL Setup (Recommended for Production)
+### Option 1: Supabase Setup (Recommended)
 
 ```bash
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Start MySQL (XAMPP or MySQL service)
-# - XAMPP: Open Control Panel and start MySQL
-# - Standalone: Ensure MySQL service is running
+# 2. Configure Supabase credentials in .env
 
-# 3. Run MySQL setup (auto-creates database and tables)
-python setup_mysql.py
+# 3. Apply the schema to Supabase
+python scripts/setup_supabase.py
 
-# 4. Test connection (optional)
-python test_mysql.py
-
-# 5. Start the server
+# 4. Start the server
 python run.py
 ```
 
 **Server will start at:** `http://127.0.0.1:5000`
 
-See **[MYSQL_MIGRATION.md](MYSQL_MIGRATION.md)** for quick start or **[MYSQL_SETUP.md](MYSQL_SETUP.md)** for detailed guide.
-
-### Option 2: SQLite Setup (Quick Development)
-
-```bash
-# 1. Install dependencies
-pip install -r requirements.txt
-
-# 2. Update .env to use SQLite
-# Change: DB_ENGINE=sqlite
-
-# 3. Run the server (database auto-created)
-python run.py
-```
+See **[SETUP_GUIDE.md](docs/SETUP_GUIDE.md)** for setup details.
 
 ### Configuration
 
-The `.env` file is already configured for MySQL:
+The `.env` file is configured for Supabase/Postgres:
 
 ```env
-DB_ENGINE=mysql            # MySQL enabled by default
-DB_HOST=127.0.0.1
-DB_USER=root
-DB_PASS=                   # Empty for XAMPP, set if you have password
-DB_NAME=qwerty
-DB_PORT=3306
+SUPABASE_DB_URL=
+SUPABASE_DB_HOST=
+SUPABASE_DB_PORT=5432
+SUPABASE_DB_NAME=postgres
+SUPABASE_DB_USER=postgres
+SUPABASE_DB_PASSWORD=
+SUPABASE_DB_SSLMODE=require
 ```
 
-**Note:** Update `DB_PASS` if your MySQL root account has a password.
+**Note:** the frontend publishable key is not enough for server-side SQL access; the backend uses the Supabase Postgres connection settings above.
 
 ## 📚 System Features
 
@@ -157,14 +138,14 @@ The system now uses **MySQL by default** for better performance and scalability.
 
 ### MySQL (Production - Default)
 - **Status:** ✓ Configured and ready
-- **Setup:** Run `python setup_mysql.py`
+- **Setup:** Run `python scripts/setup_supabase.py`
 - **Test:** Run `python test_mysql.py`
 - **Database:** Creates `qwerty` database with 12 tables
 - **Requirements:** MySQL server (XAMPP, standalone, etc.)
 
 **Quick Setup:**
 ```bash
-python setup_mysql.py    # Auto-creates database and tables
+python scripts/setup_supabase.py    # Applies the Supabase schema
 python test_mysql.py     # Verify connection
 python run.py            # Start server
 ```
@@ -193,13 +174,13 @@ python run.py            # Start server
 - `refresh_tokens` - JWT refresh tokens
 - `wishlist` - User saved products
 
-See **[MYSQL_SETUP.md](MYSQL_SETUP.md)** for detailed database documentation.
+See **[SETUP_GUIDE.md](docs/SETUP_GUIDE.md)** for detailed database setup notes.
 
 ## 📖 Documentation
 
 ### Quick Start Guides
 - **[MYSQL_MIGRATION.md](MYSQL_MIGRATION.md)** - ⚡ MySQL Quick Start (3 steps)
-- **[MYSQL_SETUP.md](MYSQL_SETUP.md)** - 📚 Complete MySQL Guide
+- **[SETUP_GUIDE.md](docs/SETUP_GUIDE.md)** - 📚 Complete Supabase guide
 - **[QUICK_START_TESTING.md](docs/QUICK_START_TESTING.md)** - How to test the system
 
 ### Complete Documentation
@@ -208,7 +189,7 @@ See **[MYSQL_SETUP.md](MYSQL_SETUP.md)** for detailed database documentation.
 - **[DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md)** - Index of all 25 documentation files
 
 ### Helpful Scripts
-- `python setup_mysql.py` - Automated MySQL database setup
+- `python scripts/setup_supabase.py` - Automated Supabase database setup
 - `python test_mysql.py` - Test MySQL connection and verify tables
 - `python run.py` - Start the application server
 
@@ -265,7 +246,7 @@ Password: customer123
 ## 🚀 Production Deployment
 
 1. Follow [SETUP_GUIDE.md](docs/SETUP_GUIDE.md)
-2. Configure [MYSQL_SETUP_GUIDE.md](docs/MYSQL_SETUP_GUIDE.md)
+2. Apply the schema with `python scripts/setup_supabase.py`
 3. Use Gunicorn: `gunicorn -w 4 -b 0.0.0.0:5000 backend.server:app`
 4. Set up Nginx as reverse proxy
 5. Configure SSL/TLS certificates

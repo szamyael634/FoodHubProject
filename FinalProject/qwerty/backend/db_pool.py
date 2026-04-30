@@ -10,6 +10,8 @@ from threading import Lock
 import queue
 from dotenv import load_dotenv
 
+from .supabase_compat import create_supabase_connection, supabase_configured
+
 load_dotenv()
 
 DB_ENGINE = os.environ.get('DB_ENGINE', 'sqlite').lower()
@@ -31,7 +33,9 @@ class DatabasePool:
     
     def _create_connection(self):
         """Create a new database connection"""
-        if DB_ENGINE == 'mysql':
+        if supabase_configured():
+            return create_supabase_connection()
+        elif DB_ENGINE == 'mysql':
             conn = pymysql.connect(
                 host=os.environ.get('DB_HOST', '127.0.0.1'),
                 user=os.environ.get('DB_USER', 'root'),
@@ -58,7 +62,7 @@ class DatabasePool:
             
             # Test if connection is still alive
             try:
-                if DB_ENGINE == 'mysql':
+                if supabase_configured() or DB_ENGINE == 'mysql':
                     conn.ping(reconnect=True)
                 else:
                     conn.execute('SELECT 1')
@@ -187,7 +191,7 @@ class SafeQuery:
         if where:
             conditions = []
             for col, val in where.items():
-                if DB_ENGINE == 'mysql':
+                if DB_ENGINE == 'mysql' or supabase_configured():
                     conditions.append(f"{col} = %s")
                 else:
                     conditions.append(f"{col} = ?")
@@ -221,7 +225,7 @@ class SafeQuery:
         """
         columns = ', '.join(data.keys())
         
-        if DB_ENGINE == 'mysql':
+        if DB_ENGINE == 'mysql' or supabase_configured():
             placeholders = ', '.join(['%s'] * len(data))
         else:
             placeholders = ', '.join(['?'] * len(data))
@@ -248,7 +252,7 @@ class SafeQuery:
         params = []
         
         for col, val in data.items():
-            if DB_ENGINE == 'mysql':
+            if DB_ENGINE == 'mysql' or supabase_configured():
                 set_parts.append(f"{col} = %s")
             else:
                 set_parts.append(f"{col} = ?")
@@ -259,7 +263,7 @@ class SafeQuery:
         if where:
             conditions = []
             for col, val in where.items():
-                if DB_ENGINE == 'mysql':
+                if DB_ENGINE == 'mysql' or supabase_configured():
                     conditions.append(f"{col} = %s")
                 else:
                     conditions.append(f"{col} = ?")
@@ -287,7 +291,7 @@ class SafeQuery:
         if where:
             conditions = []
             for col, val in where.items():
-                if DB_ENGINE == 'mysql':
+                if DB_ENGINE == 'mysql' or supabase_configured():
                     conditions.append(f"{col} = %s")
                 else:
                     conditions.append(f"{col} = ?")

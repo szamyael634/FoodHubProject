@@ -12,12 +12,12 @@
 - **[API_ENDPOINTS_REFERENCE.md](API_ENDPOINTS_REFERENCE.md)** - Quick endpoint summary
 - **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
 
-### 🗄️ Database & MySQL
-- **[MYSQL_SETUP_GUIDE.md](MYSQL_SETUP_GUIDE.md)** - MySQL installation and setup
-- **[MYSQL_IMPLEMENTATION_STATUS.md](MYSQL_IMPLEMENTATION_STATUS.md)** - MySQL migration status
-- **[MYSQL_MIGRATION_COMPLETE.md](MYSQL_MIGRATION_COMPLETE.md)** - Data migration guide
-- **[MYSQL_DATA_SUMMARY.md](MYSQL_DATA_SUMMARY.md)** - Data structure overview
-- **[MYSQL_QUICK_REFERENCE.md](MYSQL_QUICK_REFERENCE.md)** - Quick SQL queries
+### 🗄️ Database & Supabase
+- **[SETUP_GUIDE.md](SETUP_GUIDE.md)** - Supabase installation and setup
+- **[MYSQL_IMPLEMENTATION_STATUS.md](MYSQL_IMPLEMENTATION_STATUS.md)** - Legacy MySQL migration status
+- **[MYSQL_MIGRATION_COMPLETE.md](MYSQL_MIGRATION_COMPLETE.md)** - Legacy data migration guide
+- **[MYSQL_DATA_SUMMARY.md](MYSQL_DATA_SUMMARY.md)** - Legacy data structure overview
+- **[MYSQL_QUICK_REFERENCE.md](MYSQL_QUICK_REFERENCE.md)** - Legacy quick SQL queries
 
 ### 🔐 Authentication & Security
 - **[JWT_AUTH_IMPLEMENTATION.md](qwerty/JWT_AUTH_IMPLEMENTATION.md)** - JWT token system explanation
@@ -48,7 +48,7 @@
 
 **Deploy the system**
 1. Read: [SETUP_GUIDE.md](SETUP_GUIDE.md)
-2. Read: [MYSQL_SETUP_GUIDE.md](MYSQL_SETUP_GUIDE.md) (if using MySQL)
+2. Read: [SETUP_GUIDE.md](SETUP_GUIDE.md)
 3. Run: `python run_server.py`
 
 **Test the API**

@@ -6,22 +6,13 @@ Consolidates: check_tables, check_db_engine, check_qwerty_db, check_seller_statu
 """
 
 import sqlite3
-import pymysql
-import pymysql.cursors
 import sys
 import os
 
 # Add backend to path for server imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
 
-# Database configuration (MySQL)
-MYSQL_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': '',
-    'database': 'qwerty',
-    'cursorclass': pymysql.cursors.DictCursor
-}
+from backend.supabase_compat import create_supabase_connection, supabase_configured
 
 
 # ============================================================================
@@ -86,18 +77,15 @@ def verify_sqlite_tables():
 # ============================================================================
 
 def check_db_configuration():
-    """Check database engine configuration from server.py"""
+    """Check the active Supabase/Postgres configuration."""
     try:
-        from backend.server import app, DB_ENGINE, DB_PATH
-        
-        print(f"DB_ENGINE: {DB_ENGINE}")
-        print(f"DB_PATH: {DB_PATH}")
-        print(f"DB file exists: {os.path.exists(DB_PATH)}")
-        
+        print(f"Supabase configured: {supabase_configured()}")
+        print(f"SUPABASE_DB_URL set: {bool(os.environ.get('SUPABASE_DB_URL'))}")
+        print(f"SUPABASE_DB_HOST set: {bool(os.environ.get('SUPABASE_DB_HOST'))}")
         return {
-            'engine': DB_ENGINE,
-            'path': DB_PATH,
-            'exists': os.path.exists(DB_PATH)
+            'supabase_configured': supabase_configured(),
+            'supabase_url_set': bool(os.environ.get('SUPABASE_DB_URL')),
+            'supabase_host_set': bool(os.environ.get('SUPABASE_DB_HOST')),
         }
     except Exception as e:
         print(f"Error checking DB configuration: {e}")
@@ -105,13 +93,13 @@ def check_db_configuration():
 
 
 # ============================================================================
-# MySQL Check Functions
+# Supabase/Postgres Check Functions
 # ============================================================================
 
 def check_seller_status():
-    """Check and display seller status from MySQL"""
+    """Check and display seller status from Supabase/Postgres."""
     try:
-        conn = pymysql.connect(**MYSQL_CONFIG)
+        conn = create_supabase_connection()
         cursor = conn.cursor()
         
         # Get all sellers with their user info
@@ -151,9 +139,9 @@ def check_seller_status():
 
 
 def check_wishlist():
-    """Check wishlist and sample products from MySQL"""
+    """Check wishlist and sample products from Supabase/Postgres."""
     try:
-        conn = pymysql.connect(**MYSQL_CONFIG)
+        conn = create_supabase_connection()
         cursor = conn.cursor()
         
         # Check wishlist table
@@ -231,15 +219,15 @@ def fix_messaging_api_columns():
 
 
 def fix_seller_verification(seller_id=1):
-    """Update seller verification status in MySQL"""
+    """Update seller verification status in Supabase/Postgres."""
     try:
-        conn = pymysql.connect(**MYSQL_CONFIG)
+        conn = create_supabase_connection()
         cursor = conn.cursor()
         
         # Update seller to be verified
         cursor.execute('''
             UPDATE sellers 
-            SET verified = 1
+            SET verified = true
             WHERE id = %s
         ''', (seller_id,))
         
