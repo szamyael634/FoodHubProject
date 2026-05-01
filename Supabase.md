@@ -1,5 +1,0 @@
-Project URL =https://erinazbvuouefbszenkd.supabase.co
-Publishable Key =sb_publishable_3ca9AT6xL4ncrzjsprBuTQ_8v6oEZtE
-
-NEXT_PUBLIC_SUPABASE_URL=https://erinazbvuouefbszenkd.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_3ca9AT6xL4ncrzjsprBuTQ_8v6oEZtE
