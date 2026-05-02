@@ -1,28 +1,34 @@
 {
   "version": 2,
   "outputDirectory": "frontend",
-  "builds": [
+  "framework": null,
+  "rewrites": [
     {
-      "src": "frontend/**",
-      "use": "@vercel/static"
+      "source": "/api/cart/:path*",
+      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/cart-api/:path*"
+    },
+    {
+      "source": "/api/orders/:path*",
+      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/orders-api/:path*"
+    },
+    {
+      "source": "/api/products/:path*",
+      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/products-api/:path*"
+    },
+    {
+      "source": "/((?!.*\\.).*)",
+      "destination": "/$1.html"
     }
   ],
-  "routes": [
+  "headers": [
     {
-      "src": "/api/cart(.*)",
-      "dest": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/cart-api$1"
-    },
-    {
-      "src": "/api/orders(.*)",
-      "dest": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/orders-api$1"
-    },
-    {
-      "src": "/api/products(.*)",
-      "dest": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/products-api$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
     }
   ]
 }
