@@ -1,29 +1,18 @@
-
 {
-  "version": 2,
-  "rewrites": [
+  "builds": [
     {
-      "source": "/api/cart/:path*",
-      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/cart-api/:path*"
-    },
-    {
-      "source": "/api/orders/:path*",
-      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/orders-api/:path*"
-    },
-    {
-      "source": "/api/products/:path*",
-      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/products-api/:path*"
+      "src": "frontend/**",
+      "use": "@vercel/static"
     }
   ],
-  "headers": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
+      "src": "/api/(.*)",
+      "dest": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
     }
   ]
 }
