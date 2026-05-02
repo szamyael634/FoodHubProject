@@ -1,61 +1,18 @@
 {
-  "version": 2,
-  "buildCommand": null,
-  "devCommand": null,
-  "installCommand": null,
-  "framework": null,
-  "outputDirectory": "frontend",
   "builds": [
     {
-      "src": "frontend/**/*",
+      "src": "frontend/**",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/api/cart(.*)",
-      "dest": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/cart-api$1"
-    },
-    {
-      "src": "/api/orders(.*)",
-      "dest": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/orders-api$1"
-    },
-    {
-      "src": "/api/products(.*)",
-      "dest": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/products-api$1"
+      "src": "/api/(.*)",
+      "dest": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/$1"
     },
     {
       "src": "/(.*)",
       "dest": "/frontend/$1"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/frontend/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/frontend/js/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/frontend/css/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
     }
   ]
 }
