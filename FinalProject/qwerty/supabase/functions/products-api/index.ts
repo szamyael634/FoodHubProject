@@ -1,13 +1,13 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders, handleCors } from '../../_shared/cors.ts'
+import { corsHeaders, handleCors } from '../_shared/cors.ts'
 
 serve(async (req) => {
   const corsResponse = handleCors(req)
   if (corsResponse) return corsResponse
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://gladttjcpcgpvxdrhqmx.supabase.co'
+  const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdsYWR0dGpjcGNncHZ4ZHJocW14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2ODkyMTIsImV4cCI6MjA5MzI2NTIxMn0.HON5KpR2tuXISMZl4hgx48A0qYaxeUlBMHg7fO0rNJI'
   
   const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: { autoRefreshToken: false, persistSession: false }
@@ -19,8 +19,7 @@ serve(async (req) => {
   try {
     switch (req.method) {
       case 'GET': {
-        // Get single product
-        if (path && path !== 'products') {
+        if (path && path !== 'products-api') {
           const { data: product, error } = await supabase
             .from('products')
             .select(`
@@ -41,7 +40,6 @@ serve(async (req) => {
           )
         }
 
-        // List products
         let query = supabase
           .from('products')
           .select(`
@@ -51,24 +49,15 @@ serve(async (req) => {
           `)
           .eq('status', 'active')
 
-        // Apply filters
         const categoryId = url.searchParams.get('category')
         const sellerId = url.searchParams.get('seller')
         const search = url.searchParams.get('search')
         const limit = parseInt(url.searchParams.get('limit') || '20')
         const offset = parseInt(url.searchParams.get('offset') || '0')
 
-        if (categoryId) {
-          query = query.eq('category_id', categoryId)
-        }
-
-        if (sellerId) {
-          query = query.eq('seller_id', sellerId)
-        }
-
-        if (search) {
-          query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
-        }
+        if (categoryId) query = query.eq('category_id', categoryId)
+        if (sellerId) query = query.eq('seller_id', sellerId)
+        if (search) query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
 
         const { data: products, error, count } = await query
           .order('created_at', { ascending: false })
@@ -87,7 +76,6 @@ serve(async (req) => {
       }
 
       case 'POST': {
-        // Check authentication
         const authHeader = req.headers.get('Authorization')
         if (!authHeader) {
           return new Response(
@@ -107,7 +95,6 @@ serve(async (req) => {
           )
         }
 
-        // Verify user is a seller
         const { data: seller } = await supabase
           .from('seller_details')
           .select('id, verification_status')
@@ -124,10 +111,7 @@ serve(async (req) => {
         const body = await req.json()
         const { data, error } = await supabase
           .from('products')
-          .insert({
-            ...body,
-            seller_id: seller.id
-          })
+          .insert({ ...body, seller_id: seller.id })
           .select()
 
         if (error) throw error
@@ -155,7 +139,6 @@ serve(async (req) => {
         const productId = body.id
         delete body.id
 
-        // Verify ownership
         const { data: product } = await supabase
           .from('products')
           .select('seller_id')
@@ -249,7 +232,7 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 405 }
         )
     }
-  } catch (error) {
+  } catch (error: any) {
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

@@ -4,8 +4,28 @@
   "outputDirectory": "frontend",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/$1"
+      "source": "/api/cart/(.*)",
+      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/cart-api/$1"
+    },
+    {
+      "source": "/api/cart",
+      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/cart-api"
+    },
+    {
+      "source": "/api/orders/(.*)",
+      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/orders-api/$1"
+    },
+    {
+      "source": "/api/orders",
+      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/orders-api"
+    },
+    {
+      "source": "/api/products/(.*)",
+      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/products-api/$1"
+    },
+    {
+      "source": "/api/products",
+      "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/products-api"
     }
   ],
   "headers": [
