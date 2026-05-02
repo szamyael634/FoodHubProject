@@ -1,7 +1,6 @@
+
 {
   "version": 2,
-  "outputDirectory": "frontend",
-  "framework": null,
   "rewrites": [
     {
       "source": "/api/cart/:path*",
@@ -14,10 +13,6 @@
     {
       "source": "/api/products/:path*",
       "destination": "https://gladttjcpcgpvxdrhqmx.supabase.co/functions/v1/products-api/:path*"
-    },
-    {
-      "source": "/((?!.*\\.).*)",
-      "destination": "/$1.html"
     }
   ],
   "headers": [
