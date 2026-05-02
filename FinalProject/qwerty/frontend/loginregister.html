@@ -63,7 +63,7 @@
                 }
                 
                 // Otherwise redirect to dashboard based on role
-                const role = decoded.role;
+                const role = decoded.role || localStorage.getItem('hub_user_role') || 'customer';
                 console.log('✅ Valid session found - redirecting to', role, 'dashboard');
                 
                 if (role === 'seller') {

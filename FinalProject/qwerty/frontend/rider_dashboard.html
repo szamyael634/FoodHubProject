@@ -22,7 +22,8 @@
             try {
                 const parts = token.split('.');
                 const decoded = JSON.parse(atob(parts[1]));
-                if (decoded.role !== 'rider') {
+                const role = decoded.role || localStorage.getItem('hub_user_role');
+                if (role !== 'rider') {
                     alert('Access denied. Rider account required.');
                     window.location.href = '/';
                 }

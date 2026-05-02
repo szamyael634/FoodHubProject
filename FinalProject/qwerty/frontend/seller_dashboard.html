@@ -164,7 +164,8 @@
             try {
                 const parts = token.split('.');
                 const decoded = JSON.parse(atob(parts[1]));
-                if (decoded.role !== 'seller') {
+                const role = decoded.role || localStorage.getItem('hub_user_role');
+                if (role !== 'seller') {
                     alert('Access denied. Seller account required.');
                     window.location.href = '/';
                 }

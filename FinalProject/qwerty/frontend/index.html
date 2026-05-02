@@ -1197,9 +1197,9 @@
                 try {
                     const parts = token.split('.');
                     const decoded = JSON.parse(atob(parts[1]));
-                    return decoded.role;
+                    return decoded.role || localStorage.getItem('hub_user_role');
                 } catch (e) {
-                    return null;
+                    return localStorage.getItem('hub_user_role');
                 }
             }
 

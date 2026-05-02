@@ -1509,8 +1509,109 @@ function switchCustomerStep(step){
   }
 }
 const pendingRegistrations={ customer:null, seller:null, rider:null };
-function sendOTP(email,type){
+const SUPABASE_URL = window.SUPABASE_URL || window.NEXT_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_KEY = window.SUPABASE_PUBLISHABLE_KEY || window.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
+const SUPABASE_SDK_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+let supabaseClientPromise = null;
+let supabaseClient = null;
+
+function loadSupabaseSdk() {
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    return Promise.resolve(window.supabase);
+  }
+
+  return new Promise((resolve, reject) => {
+    const existingScript = document.querySelector('script[data-hub-supabase-sdk="true"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(window.supabase));
+      existingScript.addEventListener('error', () => reject(new Error('Unable to load Supabase SDK')));
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = SUPABASE_SDK_URL;
+    script.async = true;
+    script.dataset.hubSupabaseSdk = 'true';
+    script.onload = () => resolve(window.supabase);
+    script.onerror = () => reject(new Error('Unable to load Supabase SDK'));
+    document.head.appendChild(script);
+  });
+}
+
+async function getSupabaseClient() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
+  if (supabaseClient) return supabaseClient;
+
+  if (!supabaseClientPromise) {
+    supabaseClientPromise = loadSupabaseSdk().then((supabase) => {
+      if (!supabase || typeof supabase.createClient !== 'function') return null;
+      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      });
+      window.hubSupabase = supabaseClient;
+      sessionStorage.setItem('hub_auth_provider', 'supabase');
+      return supabaseClient;
+    }).catch((error) => {
+      console.warn('Supabase client unavailable, falling back to legacy auth.', error);
+      return null;
+    });
+  }
+
+  return supabaseClientPromise;
+}
+
+function getStoredRoleFallback() {
+  return localStorage.getItem('hub_user_role') || 'customer';
+}
+
+async function resolveSupabaseRole(supabase, user) {
+  if (!user) return getStoredRoleFallback();
+
+  const metadataRole = user.user_metadata?.role || user.app_metadata?.role;
+  if (metadataRole) return metadataRole;
+
+  try {
+    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+    if (data && data.role) return data.role;
+  } catch (error) {
+    console.warn('Unable to resolve Supabase role from profiles table:', error);
+  }
+
+  return getStoredRoleFallback();
+}
+
+function persistAuthSession(session, role, user) {
+  if (!session) return;
+
+  setAuthTokens(session.access_token, session.refresh_token);
+  localStorage.setItem('hub_user_role', role || 'customer');
+  if (user?.id) localStorage.setItem('hub_user_id', user.id);
+  if (user?.email) localStorage.setItem('hub_user_email', user.email);
+}
+
+function buildRedirectUrl(role) {
+  if (role === 'admin') return 'admin_dashboard.html';
+  if (role === 'seller') return 'seller_dashboard.html';
+  if (role === 'rider') return 'rider_dashboard.html';
+
+  sessionStorage.setItem('just_logged_in', 'true');
+  return 'index.html';
+}
+
+async function sendOTP(email,type){
   if(!email) return showError(type==='customer'?'custEmailError':'selEmailError','Missing email');
+
+  const supabase = await getSupabaseClient();
+  if (supabase) {
+    showSuccess((type || '') + 'Success', `Supabase account created for ${email}. Check your inbox if email confirmation is enabled.`);
+    if (type === 'customer') switchCustomerStep(2);
+    return;
+  }
+
   fetch('/api/auth/send-otp',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -1532,7 +1633,7 @@ function validatePassword(p){ return p.length>=6; }
 function showError(id,msg){ const el=document.getElementById(id); if(el){ el.textContent=msg; el.classList.add('show'); } }
 function clearError(id){ const el=document.getElementById(id); if(el){ el.classList.remove('show'); el.textContent=''; } }
 function showSuccess(id,msg){ const el=document.getElementById(id); if(el){ el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),5000); } }
-function handleLogin(ev){ 
+async function handleLogin(ev){ 
   ev.preventDefault(); 
   clearError('loginEmailError'); 
   clearError('loginPasswordError'); 
@@ -1564,6 +1665,39 @@ function handleLogin(ev){
     ok=false;
   } 
   if(ok){
+    const supabase = await getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error || !data || !data.session || !data.user) {
+          const errorMessage = error?.message || 'Login failed. Please try again.';
+          if (window.notify) window.notify.error(errorMessage);
+          showError('loginEmailError', errorMessage);
+          return;
+        }
+
+        const userRole = await resolveSupabaseRole(supabase, data.user);
+        persistAuthSession(data.session, userRole, data.user);
+
+        if (window.notify) {
+          window.notify.success('Login successful! Welcome back.');
+        }
+
+        document.getElementById('loginForm').reset();
+
+        const returnUrl = localStorage.getItem('returnUrl');
+        const redirectUrl = returnUrl || buildRedirectUrl(userRole);
+        if (returnUrl) localStorage.removeItem('returnUrl');
+
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 800);
+        return;
+      } catch (error) {
+        console.error('Supabase login error', error);
+      }
+    }
+
     fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})})
       .then(r=>{
         const status = r.status;
@@ -1588,10 +1722,13 @@ function handleLogin(ev){
             try {
               const parts = resp.token.split('.');
               const decoded = JSON.parse(atob(parts[1]));
-              userRole = decoded.role;
+              userRole = decoded.role || localStorage.getItem('hub_user_role');
             } catch(e) {
               console.error('Failed to decode token:', e);
             }
+          }
+          if (!userRole) {
+            userRole = localStorage.getItem('hub_user_role') || 'customer';
           }
           
           // Check for return URL first (from message seller flow)
@@ -1604,17 +1741,7 @@ function handleLogin(ev){
             redirectUrl = returnUrl;
           } else {
             // Redirect based on user role
-            if(userRole === 'admin') {
-              redirectUrl = 'admin_dashboard.html';
-            } else if(userRole === 'seller') {
-              redirectUrl = 'seller_dashboard.html';
-            } else if(userRole === 'rider') {
-              redirectUrl = 'rider_dashboard.html';
-            } else {
-              // Customer - set flag for welcome notification on index page
-              sessionStorage.setItem('just_logged_in', 'true');
-              redirectUrl = 'index.html';
-            }
+            redirectUrl = buildRedirectUrl(userRole);
           }
           
           // Redirect to appropriate page
@@ -1651,49 +1778,177 @@ function handleLogin(ev){
       });
   }
 }
-function handleCustomerRegistration(ev){ ev.preventDefault(); ['custFirstNameError','custLastNameError','custEmailError','custPasswordError','custConfirmPasswordError'].forEach(clearError); const firstName=document.getElementById('custFirstName').value.trim(); const lastName=document.getElementById('custLastName').value.trim(); const email=document.getElementById('custEmail').value.trim(); const password=document.getElementById('custPassword').value; const confirm=document.getElementById('custConfirmPassword').value; let ok=true; if(!firstName){ showError('custFirstNameError','First name is required'); ok=false;} if(!lastName){ showError('custLastNameError','Last name is required'); ok=false;} if(!validateEmail(email)){ showError('custEmailError','Please enter a valid email'); ok=false;} if(!validatePassword(password)){ showError('custPasswordError','Password must be at least 6 characters'); ok=false;} if(password!==confirm){ showError('custConfirmPasswordError','Passwords do not match'); ok=false;} if(ok){ const data={firstName,lastName,email}; console.log('Customer Registration (pending):',data); pendingRegistrations.customer={...data}; sendOTP(email,'customer'); switchCustomerStep(4); } }
-function handleCustomerRegistration(ev){ ev.preventDefault(); ['custFirstNameError','custLastNameError','custEmailError','custPasswordError','custConfirmPasswordError'].forEach(clearError); const firstName=document.getElementById('custFirstName').value.trim(); const lastName=document.getElementById('custLastName').value.trim(); const email=document.getElementById('custEmail').value.trim(); const password=document.getElementById('custPassword').value; const confirm=document.getElementById('custConfirmPassword').value; let ok=true; if(!firstName){ showError('custFirstNameError','First name is required'); ok=false;} if(!lastName){ showError('custLastNameError','Last name is required'); ok=false;} if(!validateEmail(email)){ showError('custEmailError','Please enter a valid email'); ok=false;} if(!validatePassword(password)){ showError('custPasswordError','Password must be at least 6 characters'); ok=false;} if(password!==confirm){ showError('custConfirmPasswordError','Passwords do not match'); ok=false;} if(ok){ const payload={ email, password, role:'customer', first_name:firstName, last_name:lastName };
-    fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-      .then(r=>r.json()).then(resp=>{
-        if(resp && resp.success){
-          if(resp.token) localStorage.setItem('hub_access_token', resp.token);
-          if(resp.refresh_token) localStorage.setItem('hub_refresh_token', resp.refresh_token);
-          pendingRegistrations.customer={firstName,lastName,email}; sendOTP(email,'customer'); switchCustomerStep(4);
-        } else { showError('custEmailError', resp.error || 'Registration failed'); }
-      }).catch(err=>{ console.error(err); showError('custEmailError','Server error'); });
+async function handleCustomerRegistration(ev){
+  ev.preventDefault();
+  ['custFirstNameError','custLastNameError','custEmailError','custPasswordError','custConfirmPasswordError'].forEach(clearError);
+  const firstName=document.getElementById('custFirstName').value.trim();
+  const lastName=document.getElementById('custLastName').value.trim();
+  const email=document.getElementById('custEmail').value.trim();
+  const password=document.getElementById('custPassword').value;
+  const confirm=document.getElementById('custConfirmPassword').value;
+  let ok=true;
+  if(!firstName){ showError('custFirstNameError','First name is required'); ok=false;}
+  if(!lastName){ showError('custLastNameError','Last name is required'); ok=false;}
+  if(!validateEmail(email)){ showError('custEmailError','Please enter a valid email'); ok=false;}
+  if(!validatePassword(password)){ showError('custPasswordError','Password must be at least 6 characters'); ok=false;}
+  if(password!==confirm){ showError('custConfirmPasswordError','Passwords do not match'); ok=false;}
+  if(!ok) return;
+
+  const supabase = await getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          role: 'customer',
+          first_name: firstName,
+          last_name: lastName
+        }
+      }
+    });
+
+    if (error) {
+      showError('custEmailError', error.message || 'Registration failed');
+      return;
+    }
+
+    if (data?.session && data?.user) {
+      const role = await resolveSupabaseRole(supabase, data.user);
+      persistAuthSession(data.session, role, data.user);
+    }
+
+    pendingRegistrations.customer = { firstName, lastName, email, supabase: true };
+    showSuccess('customerSuccess', 'Account created. Check your email to confirm the Supabase sign-in flow.');
+    switchCustomerStep(4);
+    return;
   }
+
+  const payload={ email, password, role:'customer', first_name:firstName, last_name:lastName };
+  fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(r=>r.json()).then(resp=>{
+      if(resp && resp.success){
+        if(resp.token) localStorage.setItem('hub_access_token', resp.token);
+        if(resp.refresh_token) localStorage.setItem('hub_refresh_token', resp.refresh_token);
+        pendingRegistrations.customer={firstName,lastName,email}; sendOTP(email,'customer'); switchCustomerStep(4);
+      } else { showError('custEmailError', resp.error || 'Registration failed'); }
+    }).catch(err=>{ console.error(err); showError('custEmailError','Server error'); });
 }
 function handleSellerStep1(ev){ ev.preventDefault(); ['selFirstNameError','selLastNameError'].forEach(clearError); const first=document.getElementById('selFirstName').value.trim(); const last=document.getElementById('selLastName').value.trim(); let ok=true; if(!first){ showError('selFirstNameError','First name is required'); ok=false;} if(!last){ showError('selLastNameError','Last name is required'); ok=false;} if(ok) switchSellerStep(2); }
 function handleSellerStep2(ev){ ev.preventDefault(); ['selBusinessNameError','selBusinessDocError','selBusinessCategoryError','selRegionError','selProvinceError','selCityError'].forEach(clearError); const business=document.getElementById('selBusinessName').value.trim(); const doc=document.getElementById('selBusinessDoc').value; const cat=document.getElementById('selBusinessCategory').value; const region=document.getElementById('selRegion').value; const province=document.getElementById('selProvince').value; const city=document.getElementById('selCity').value; let ok=true; if(!business){ showError('selBusinessNameError','Business name is required'); ok=false;} if(!doc){ showError('selBusinessDocError','Business document is required'); ok=false;} if(!cat){ showError('selBusinessCategoryError','Please select a business category'); ok=false;} if(!region){ showError('selRegionError','Please select a region'); ok=false;} if(!province){ showError('selProvinceError','Please select a province'); ok=false;} if(!city){ showError('selCityError','Please select a city'); ok=false;} if(ok) switchSellerStep(3); }
-function handleSellerRegistration(ev){ ev.preventDefault(); ['selEmailError','selPasswordError','selConfirmPasswordError'].forEach(clearError); const first=document.getElementById('selFirstName').value.trim(); const email=document.getElementById('selEmail').value.trim(); const password=document.getElementById('selPassword').value; const confirm=document.getElementById('selConfirmPassword').value; let ok=true; if(!validateEmail(email)){ showError('selEmailError','Please enter a valid email'); ok=false;} if(!validatePassword(password)){ showError('selPasswordError','Password must be at least 6 characters'); ok=false;} if(password!==confirm){ showError('selConfirmPasswordError','Passwords do not match'); ok=false;} if(ok){ const data={ firstName:first, businessName:document.getElementById('selBusinessName').value, category:document.getElementById('selBusinessCategory').value, email }; console.log('Seller Registration (pending):',data); pendingRegistrations.seller={...data}; sendOTP(email,'seller'); switchSellerStep(4); } }
-function handleSellerRegistration(ev){ ev.preventDefault(); ['selEmailError','selPasswordError','selConfirmPasswordError'].forEach(clearError); const first=document.getElementById('selFirstName').value.trim(); const email=document.getElementById('selEmail').value.trim(); const password=document.getElementById('selPassword').value; const confirm=document.getElementById('selConfirmPassword').value; let ok=true; if(!validateEmail(email)){ showError('selEmailError','Please enter a valid email'); ok=false;} if(!validatePassword(password)){ showError('selPasswordError','Password must be at least 6 characters'); ok=false;} if(password!==confirm){ showError('selConfirmPasswordError','Passwords do not match'); ok=false;} if(ok){ const payload={ email, password, role:'seller', first_name:first, business_name:document.getElementById('selBusinessName').value, category:document.getElementById('selBusinessCategory').value };
-    fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-      .then(r=>r.json()).then(resp=>{
-        if(resp && resp.success){
-          if(resp.token) localStorage.setItem('hub_access_token', resp.token);
-          if(resp.refresh_token) localStorage.setItem('hub_refresh_token', resp.refresh_token);
-          pendingRegistrations.seller={...payload}; sendOTP(email,'seller'); switchSellerStep(4);
-        } else { showError('selEmailError', resp.error || 'Registration failed'); }
-      }).catch(err=>{ console.error(err); showError('selEmailError','Server error'); });
+async function handleSellerRegistration(ev){
+  ev.preventDefault();
+  ['selEmailError','selPasswordError','selConfirmPasswordError'].forEach(clearError);
+  const first=document.getElementById('selFirstName').value.trim();
+  const email=document.getElementById('selEmail').value.trim();
+  const password=document.getElementById('selPassword').value;
+  const confirm=document.getElementById('selConfirmPassword').value;
+  let ok=true;
+  if(!validateEmail(email)){ showError('selEmailError','Please enter a valid email'); ok=false;}
+  if(!validatePassword(password)){ showError('selPasswordError','Password must be at least 6 characters'); ok=false;}
+  if(password!==confirm){ showError('selConfirmPasswordError','Passwords do not match'); ok=false;}
+  if(!ok) return;
+
+  const supabase = await getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          role: 'seller',
+          first_name: first,
+          business_name: document.getElementById('selBusinessName').value,
+          category: document.getElementById('selBusinessCategory').value
+        }
+      }
+    });
+
+    if (error) {
+      showError('selEmailError', error.message || 'Registration failed');
+      return;
+    }
+
+    if (data?.session && data?.user) {
+      const role = await resolveSupabaseRole(supabase, data.user);
+      persistAuthSession(data.session, role, data.user);
+    }
+
+    pendingRegistrations.seller = { email, supabase: true };
+    showSuccess('sellerSuccess', 'Seller account created. Check your email to confirm the Supabase sign-in flow.');
+    switchSellerStep(4);
+    return;
   }
+
+  const payload={ email, password, role:'seller', first_name:first, business_name:document.getElementById('selBusinessName').value, category:document.getElementById('selBusinessCategory').value };
+  fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(r=>r.json()).then(resp=>{
+      if(resp && resp.success){
+        if(resp.token) localStorage.setItem('hub_access_token', resp.token);
+        if(resp.refresh_token) localStorage.setItem('hub_refresh_token', resp.refresh_token);
+        pendingRegistrations.seller={...payload}; sendOTP(email,'seller'); switchSellerStep(4);
+      } else { showError('selEmailError', resp.error || 'Registration failed'); }
+    }).catch(err=>{ console.error(err); showError('selEmailError','Server error'); });
 }
 function handleRiderStep1(ev){ ev.preventDefault(); ['ridFirstNameError','ridLastNameError'].forEach(clearError); const first=document.getElementById('ridFirstName').value.trim(); const last=document.getElementById('ridLastName').value.trim(); let ok=true; if(!first){ showError('ridFirstNameError','First name is required'); ok=false;} if(!last){ showError('ridLastNameError','Last name is required'); ok=false;} if(ok) switchRiderStep(2); }
 function handleRiderStep2(ev){ ev.preventDefault(); ['ridVehicleTypeError','ridDriverLicenseError','ridPlateNumberError'].forEach(clearError); const vehicle=document.getElementById('ridVehicleType').value; const license=document.getElementById('ridDriverLicense').value; const plate=document.getElementById('ridPlateNumber').value.trim(); let ok=true; if(!vehicle){ showError('ridVehicleTypeError','Please select a vehicle type'); ok=false;} if(!license){ showError('ridDriverLicenseError','Driver license is required'); ok=false;} if(!plate){ showError('ridPlateNumberError','Plate number is required'); ok=false;} if(ok) switchRiderStep(3); }
-function handleRiderRegistration(ev){ ev.preventDefault(); ['ridEmailError','ridPasswordError','ridConfirmPasswordError'].forEach(clearError); const first=document.getElementById('ridFirstName').value.trim(); const email=document.getElementById('ridEmail').value.trim(); const password=document.getElementById('ridPassword').value; const confirm=document.getElementById('ridConfirmPassword').value; let ok=true; if(!validateEmail(email)){ showError('ridEmailError','Please enter a valid email'); ok=false;} if(!validatePassword(password)){ showError('ridPasswordError','Password must be at least 6 characters'); ok=false;} if(password!==confirm){ showError('ridConfirmPasswordError','Passwords do not match'); ok=false;} if(ok){ const data={ firstName:first, vehicleType:document.getElementById('ridVehicleType').value, email }; console.log('Rider Registration (pending):',data); pendingRegistrations.rider={...data}; sendOTP(email,'rider'); switchRiderStep(4); } }
-function handleRiderRegistration(ev){ ev.preventDefault(); ['ridEmailError','ridPasswordError','ridConfirmPasswordError'].forEach(clearError); const first=document.getElementById('ridFirstName').value.trim(); const email=document.getElementById('ridEmail').value.trim(); const password=document.getElementById('ridPassword').value; const confirm=document.getElementById('ridConfirmPassword').value; let ok=true; if(!validateEmail(email)){ showError('ridEmailError','Please enter a valid email'); ok=false;} if(!validatePassword(password)){ showError('ridPasswordError','Password must be at least 6 characters'); ok=false;} if(password!==confirm){ showError('ridConfirmPasswordError','Passwords do not match'); ok=false;} if(ok){ const payload={ email, password, role:'rider', first_name:first, vehicle_type:document.getElementById('ridVehicleType').value, driver_license:document.getElementById('ridDriverLicense').value };
-    fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-      .then(r=>r.json()).then(resp=>{
-        if(resp && resp.success){
-          if(resp.token) localStorage.setItem('hub_access_token', resp.token);
-          if(resp.refresh_token) localStorage.setItem('hub_refresh_token', resp.refresh_token);
-          pendingRegistrations.rider={...payload}; sendOTP(email,'rider'); switchRiderStep(4);
-        } else { showError('ridEmailError', resp.error || 'Registration failed'); }
-      }).catch(err=>{ console.error(err); showError('ridEmailError','Server error'); });
+async function handleRiderRegistration(ev){
+  ev.preventDefault();
+  ['ridEmailError','ridPasswordError','ridConfirmPasswordError'].forEach(clearError);
+  const first=document.getElementById('ridFirstName').value.trim();
+  const email=document.getElementById('ridEmail').value.trim();
+  const password=document.getElementById('ridPassword').value;
+  const confirm=document.getElementById('ridConfirmPassword').value;
+  let ok=true;
+  if(!validateEmail(email)){ showError('ridEmailError','Please enter a valid email'); ok=false;}
+  if(!validatePassword(password)){ showError('ridPasswordError','Password must be at least 6 characters'); ok=false;}
+  if(password!==confirm){ showError('ridConfirmPasswordError','Passwords do not match'); ok=false;}
+  if(!ok) return;
+
+  const supabase = await getSupabaseClient();
+  if (supabase) {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          role: 'rider',
+          first_name: first,
+          vehicle_type: document.getElementById('ridVehicleType').value,
+          driver_license: document.getElementById('ridDriverLicense').value
+        }
+      }
+    });
+
+    if (error) {
+      showError('ridEmailError', error.message || 'Registration failed');
+      return;
+    }
+
+    if (data?.session && data?.user) {
+      const role = await resolveSupabaseRole(supabase, data.user);
+      persistAuthSession(data.session, role, data.user);
+    }
+
+    pendingRegistrations.rider = { email, supabase: true };
+    showSuccess('riderSuccess', 'Rider account created. Check your email to confirm the Supabase sign-in flow.');
+    switchRiderStep(4);
+    return;
   }
+
+  const payload={ email, password, role:'rider', first_name:first, vehicle_type:document.getElementById('ridVehicleType').value, driver_license:document.getElementById('ridDriverLicense').value };
+  fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(r=>r.json()).then(resp=>{
+      if(resp && resp.success){
+        if(resp.token) localStorage.setItem('hub_access_token', resp.token);
+        if(resp.refresh_token) localStorage.setItem('hub_refresh_token', resp.refresh_token);
+        pendingRegistrations.rider={...payload}; sendOTP(email,'rider'); switchRiderStep(4);
+      } else { showError('ridEmailError', resp.error || 'Registration failed'); }
+    }).catch(err=>{ console.error(err); showError('ridEmailError','Server error'); });
 }
-function handleCustomerOTP(ev){ ev.preventDefault(); clearError('custOTPError'); const code=document.getElementById('custOTP').value.trim(); const email = pendingRegistrations.customer?.email || document.getElementById('custEmail')?.value; if(!email){ showError('custOTPError','Missing email'); return;} if(code.length<4){ showError('custOTPError','Enter the verification code'); return;} fetch('/api/auth/verify-otp',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email: email, code: code }) }).then(r=>r.json()).then(j=>{ if(j && j.success){ showSuccess('customerSuccess',`Account verified for ${pendingRegistrations.customer?.firstName||''}`); pendingRegistrations.customer=null; document.getElementById('customerForm')?.reset(); document.getElementById('customerFormOTP')?.reset?.(); setTimeout(()=>switchForm('login'),1500); } else { showError('custOTPError', j && j.error ? j.error : 'Verification failed'); } }).catch(err=>{ console.error('verify-otp error',err); showError('custOTPError','Server error'); }); }
-function handleSellerOTP(ev){ ev.preventDefault(); clearError('sellerOTPError'); const code=document.getElementById('sellerOTP').value.trim(); const email = pendingRegistrations.seller?.email || document.getElementById('selEmail')?.value; if(!email){ showError('sellerOTPError','Missing email'); return;} if(code.length<4){ showError('sellerOTPError','Enter the verification code'); return;} fetch('/api/auth/verify-otp',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email: email, code: code }) }).then(r=>r.json()).then(j=>{ if(j && j.success){ showSuccess('sellerSuccess','Seller account verified.'); pendingRegistrations.seller=null; ['sellerForm1','sellerForm2','sellerForm3'].forEach(id=>document.getElementById(id).reset?.()); setTimeout(()=>switchForm('login'),1500); } else { showError('sellerOTPError', j && j.error ? j.error : 'Verification failed'); } }).catch(err=>{ console.error('verify-otp error',err); showError('sellerOTPError','Server error'); }); }
-function handleRiderOTP(ev){ ev.preventDefault(); clearError('riderOTPError'); const code=document.getElementById('riderOTP').value.trim(); const email = pendingRegistrations.rider?.email || document.getElementById('ridEmail')?.value; if(!email){ showError('riderOTPError','Missing email'); return;} if(code.length<4){ showError('riderOTPError','Enter the verification code'); return;} fetch('/api/auth/verify-otp',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email: email, code: code }) }).then(r=>r.json()).then(j=>{ if(j && j.success){ showSuccess('riderSuccess','Rider account verified.'); pendingRegistrations.rider=null; ['riderForm1','riderForm2','riderForm3'].forEach(id=>document.getElementById(id).reset?.()); setTimeout(()=>switchForm('login'),1500); } else { showError('riderOTPError', j && j.error ? j.error : 'Verification failed'); } }).catch(err=>{ console.error('verify-otp error',err); showError('riderOTPError','Server error'); }); }
+async function handleCustomerOTP(ev){ ev.preventDefault(); clearError('custOTPError'); const code=document.getElementById('custOTP').value.trim(); const email = pendingRegistrations.customer?.email || document.getElementById('custEmail')?.value; if(!email){ showError('custOTPError','Missing email'); return;} if(code.length<4){ showError('custOTPError','Enter the verification code'); return;} if(pendingRegistrations.customer?.supabase){ showSuccess('customerSuccess', 'Supabase confirmation flow is email-based.'); pendingRegistrations.customer=null; document.getElementById('customerForm')?.reset(); document.getElementById('customerFormOTP')?.reset?.(); setTimeout(()=>switchForm('login'),1500); return; } fetch('/api/auth/verify-otp',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email: email, code: code }) }).then(r=>r.json()).then(j=>{ if(j && j.success){ showSuccess('customerSuccess',`Account verified for ${pendingRegistrations.customer?.firstName||''}`); pendingRegistrations.customer=null; document.getElementById('customerForm')?.reset(); document.getElementById('customerFormOTP')?.reset?.(); setTimeout(()=>switchForm('login'),1500); } else { showError('custOTPError', j && j.error ? j.error : 'Verification failed'); } }).catch(err=>{ console.error('verify-otp error',err); showError('custOTPError','Server error'); }); }
+async function handleSellerOTP(ev){ ev.preventDefault(); clearError('sellerOTPError'); const code=document.getElementById('sellerOTP').value.trim(); const email = pendingRegistrations.seller?.email || document.getElementById('selEmail')?.value; if(!email){ showError('sellerOTPError','Missing email'); return;} if(code.length<4){ showError('sellerOTPError','Enter the verification code'); return;} if(pendingRegistrations.seller?.supabase){ showSuccess('sellerSuccess','Supabase confirmation flow is email-based.'); pendingRegistrations.seller=null; ['sellerForm1','sellerForm2','sellerForm3'].forEach(id=>document.getElementById(id).reset?.()); setTimeout(()=>switchForm('login'),1500); return; } fetch('/api/auth/verify-otp',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email: email, code: code }) }).then(r=>r.json()).then(j=>{ if(j && j.success){ showSuccess('sellerSuccess','Seller account verified.'); pendingRegistrations.seller=null; ['sellerForm1','sellerForm2','sellerForm3'].forEach(id=>document.getElementById(id).reset?.()); setTimeout(()=>switchForm('login'),1500); } else { showError('sellerOTPError', j && j.error ? j.error : 'Verification failed'); } }).catch(err=>{ console.error('verify-otp error',err); showError('sellerOTPError','Server error'); }); }
+async function handleRiderOTP(ev){ ev.preventDefault(); clearError('riderOTPError'); const code=document.getElementById('riderOTP').value.trim(); const email = pendingRegistrations.rider?.email || document.getElementById('ridEmail')?.value; if(!email){ showError('riderOTPError','Missing email'); return;} if(code.length<4){ showError('riderOTPError','Enter the verification code'); return;} if(pendingRegistrations.rider?.supabase){ showSuccess('riderSuccess','Supabase confirmation flow is email-based.'); pendingRegistrations.rider=null; ['riderForm1','riderForm2','riderForm3'].forEach(id=>document.getElementById(id).reset?.()); setTimeout(()=>switchForm('login'),1500); return; } fetch('/api/auth/verify-otp',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email: email, code: code }) }).then(r=>r.json()).then(j=>{ if(j && j.success){ showSuccess('riderSuccess','Rider account verified.'); pendingRegistrations.rider=null; ['riderForm1','riderForm2','riderForm3'].forEach(id=>document.getElementById(id).reset?.()); setTimeout(()=>switchForm('login'),1500); } else { showError('riderOTPError', j && j.error ? j.error : 'Verification failed'); } }).catch(err=>{ console.error('verify-otp error',err); showError('riderOTPError','Server error'); }); }
 
 // Initialize auth only when on auth page
 window.addEventListener('DOMContentLoaded',()=>{ if(document.body.classList.contains('auth')){ switchForm('login'); } });
@@ -1705,7 +1960,19 @@ function clearAuthTokens(){ localStorage.removeItem('hub_access_token'); localSt
 async function authFetch(input, init){
   init = init || {};
   init.headers = init.headers || {};
-  const token = localStorage.getItem('hub_access_token');
+  let token = localStorage.getItem('hub_access_token');
+  if(!token){
+    const supabase = await getSupabaseClient();
+    if(supabase){
+      try{
+        const { data } = await supabase.auth.getSession();
+        token = data?.session?.access_token || null;
+        if(token) setAuthTokens(token, data.session.refresh_token);
+      }catch(error){
+        console.warn('Unable to read Supabase session for authFetch:', error);
+      }
+    }
+  }
   if(token) init.headers['Authorization'] = 'Bearer ' + token;
   // Only set Content-Type to JSON if body is not FormData (FormData needs browser to set multipart boundary)
   if(init.body && !(init.body instanceof FormData) && !init.headers['Content-Type']) init.headers['Content-Type'] = 'application/json';

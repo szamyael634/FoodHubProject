@@ -43,13 +43,19 @@
             const payload = token.split('.')[1];
             const decoded = JSON.parse(atob(payload));
             return {
-                id: decoded.user_id,
-                role: decoded.role,
-                email: decoded.email
+                id: decoded.user_id || localStorage.getItem('hub_user_id'),
+                role: decoded.role || localStorage.getItem('hub_user_role') || 'customer',
+                email: decoded.email || localStorage.getItem('hub_user_email')
             };
         } catch (error) {
             console.error('Error decoding token:', error);
-            return null;
+            const fallbackRole = localStorage.getItem('hub_user_role');
+            if (!fallbackRole) return null;
+            return {
+                id: localStorage.getItem('hub_user_id'),
+                role: fallbackRole,
+                email: localStorage.getItem('hub_user_email')
+            };
         }
     }
     

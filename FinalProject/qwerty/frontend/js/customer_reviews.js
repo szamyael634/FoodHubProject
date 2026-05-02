@@ -302,9 +302,9 @@ function getRoleFromToken() {
     try {
         const parts = token.split('.');
         const decoded = JSON.parse(atob(parts[1]));
-        return decoded.role || 'customer';
+            return decoded.role || localStorage.getItem('hub_user_role') || 'customer';
     } catch (e) {
-        return 'customer';
+            return localStorage.getItem('hub_user_role') || 'customer';
     }
 }
 

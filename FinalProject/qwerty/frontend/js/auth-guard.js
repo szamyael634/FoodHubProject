@@ -134,10 +134,10 @@
             const parts = token.split('.');
             if (parts.length !== 3) return null;
             const decoded = JSON.parse(atob(parts[1]));
-            return decoded.role || null;
+            return decoded.role || localStorage.getItem('hub_user_role') || null;
         } catch (e) {
             console.error('Error decoding token for role:', e);
-            return null;
+            return localStorage.getItem('hub_user_role') || null;
         }
     }
     
