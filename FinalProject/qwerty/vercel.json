@@ -1,4 +1,6 @@
 {
+  "version": 2,
+  "outputDirectory": "frontend",
   "builds": [
     {
       "src": "frontend/**",
@@ -20,7 +22,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/$1"
+      "dest": "/$1"
     }
   ]
 }
