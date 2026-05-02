@@ -1,0 +1,22 @@
+{
+  "name": "hub-ecommerce",
+  "version": "1.0.0",
+  "description": "Hub E-Commerce Platform - Supabase + Vercel",
+  "scripts": {
+    "supabase:link": "supabase link --project-ref gladttjcpcgpvxdrhqmx",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",
+    "functions:deploy": "supabase functions deploy --project-ref gladttjcpcgpvxdrhqmx",
+    "functions:serve": "supabase functions serve",
+    "vercel:dev": "vercel dev",
+    "vercel:deploy": "vercel --prod",
+    "deploy:all": "npm run db:push && npm run functions:deploy && npm run vercel:deploy"
+  },
+  "devDependencies": {
+    "supabase": "^1.145.4",
+    "vercel": "^33.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
