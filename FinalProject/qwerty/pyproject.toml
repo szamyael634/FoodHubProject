@@ -1,0 +1,17 @@
+[project]
+name = "hub-ecommerce"
+version = "1.0.0"
+description = "Hub E-Commerce Platform - Supabase + Vercel"
+requires-python = ">=3.8"
+dependencies = [
+    "Flask==3.0.0",
+    "Flask-CORS==4.0.0",
+    "requests==2.31.0",
+]
+
+[project.scripts]
+app = "app:app"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
