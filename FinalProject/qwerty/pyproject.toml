@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-app = "app:app"
+app = "app:handler"
 
 [build-system]
 requires = ["setuptools>=61.0"]
