@@ -1,11 +1,3 @@
-<<<<<<< C:/Users/bridd/Downloads/FoodHubProject/vercel.json
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "installCommand": "npm install"
-}
-=======
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
@@ -39,4 +31,3 @@
     }
   ]
 }
->>>>>>> C:/Users/bridd/.windsurf/worktrees/FoodHubProject/FoodHubProject-935d8313/vercel.json
