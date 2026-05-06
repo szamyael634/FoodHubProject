@@ -258,7 +258,7 @@ class Order {
     required this.createdAt,
   });
 
-  factory Restaurant.fromJson(Map<String, dynamic> json) {
+  Restaurant.fromJson(Map<String, dynamic> json) {
     return Restaurant(
       id: json['id'],
       ownerId: json['owner_id'] ?? '',

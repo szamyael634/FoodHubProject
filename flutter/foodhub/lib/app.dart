@@ -64,20 +64,6 @@ class FoodHubApp extends ConsumerWidget {
   }
 }
 =======
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'screens/splash_screen.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
-import 'screens/restaurant_screen.dart';
-import 'screens/cart_screen.dart';
-import 'screens/checkout_screen.dart';
-import 'screens/orders_screen.dart';
-import 'screens/order_detail_screen.dart';
-import 'screens/profile_screen.dart';
 import 'screens/review_screen.dart';
 import 'screens/restaurant_dashboard_screen.dart';
 import 'screens/driver_dashboard_screen.dart';
