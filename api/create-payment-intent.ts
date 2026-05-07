@@ -1,37 +1,41 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import Stripe from 'https://esm.sh/stripe@14.21.0';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import Stripe from 'stripe';
 
-const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY') || '';
-const stripe = new Stripe(stripeSecretKey);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
-serve(async (req) => {
+if (!stripeSecretKey) {
+  throw new Error('Missing environment variable: STRIPE_SECRET_KEY');
+}
+
+const stripe = new Stripe(stripeSecretKey, {
+  apiVersion: '2025-03-31.basil',
+});
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    const { amount, orderId } = await req.json();
+    const { amount, orderId } = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
     if (!amount || !orderId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+      return res.status(400).json({ error: 'Missing required parameters: amount and orderId' });
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
+      amount: Math.round(Number(amount) * 100),
       currency: 'usd',
-      metadata: { orderId },
+      metadata: { orderId: String(orderId) },
     });
 
-    return new Response(
-      JSON.stringify({
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    return res.status(200).json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    });
   } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({ error: message });
   }
-});
+}

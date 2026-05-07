@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, Clock, ChevronRight } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../store/useStore';
 import { OrderCard } from '../components';
-import type { Order } from '../types';
 
 type FilterStatus = 'all' | 'active' | 'completed';
 

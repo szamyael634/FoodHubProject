@@ -1,5 +1,4 @@
 import { supabase, signUp, signIn, signOut, getCurrentUser } from '../lib/supabase';
-import type { User } from '../types';
 
 export const authService = {
   async register(email: string, password: string, fullName: string, phone?: string) {

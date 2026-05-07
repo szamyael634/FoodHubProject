@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, CheckCircle, Clock } from 'lucide-react';
+import { Package } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getAvailableOrdersForDrivers, getDriverOrders, assignDriverToOrder, updateOrderStatus } from '../services';
-import type { Order, User } from '../types';
+import type { Order } from '../types';
 
 export function DriverDashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'available' | 'my_orders'>('available');
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
   const [myOrders, setMyOrders] = useState<Order[]>([]);
@@ -25,8 +24,6 @@ export function DriverDashboard() {
     }
 
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
-    if (profile) setUser(profile);
-
     if (profile?.role === 'driver') {
       fetchOrders();
     } else {

@@ -3,11 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getRestaurantOrders, updateOrderStatus } from '../services';
-import type { User, Order, MenuItem } from '../types';
+import type { Order, MenuItem } from '../types';
 
 export function RestaurantDashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
   const [restaurant, setRestaurant] = useState<any>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -24,9 +23,6 @@ export function RestaurantDashboard() {
       navigate('/login');
       return;
     }
-
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
-    if (profile) setUser(profile);
 
     const { data: restData } = await supabase
       .from('restaurants')

@@ -1,6 +1,10 @@
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 
-const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'sb_publishable_dzrdckgDWYs2-ERvg0NmQA_bmAvQf_b';
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+
+if (!stripePublishableKey) {
+  throw new Error('Missing Stripe environment variable: VITE_STRIPE_PUBLISHABLE_KEY must be set.');
+}
 
 let stripePromise: Promise<Stripe | null>;
 
@@ -20,7 +24,7 @@ export const createPaymentIntent = async (amount: number, orderId: string): Prom
   const response = await fetch('/api/create-payment-intent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount, orderId })
+    body: JSON.stringify({ amount, orderId }),
   });
   if (!response.ok) {
     throw new Error('Failed to create payment intent');
@@ -28,9 +32,9 @@ export const createPaymentIntent = async (amount: number, orderId: string): Prom
   return response.json();
 };
 
-export const confirmPayment = async (stripe: Stripe, clientSecret: string, paymentMethod: PaymentMethod) => {
+export const confirmPayment = async (stripe: Stripe, clientSecret: string, paymentMethod: unknown) => {
   const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-    payment_method: paymentMethod
+    payment_method: paymentMethod as any,
   });
   if (error) throw error;
   return paymentIntent;
