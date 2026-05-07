@@ -23,7 +23,7 @@ A comprehensive food delivery platform with React TypeScript frontend and Flutte
 ### Backend
 - **Supabase** (PostgreSQL database, Auth, Real-time)
 - **Stripe** for payment processing
-- **Deno** for serverless functions
+- **Vercel Node.js Functions** for serverless API endpoints
 
 ## 📁 Project Structure
 

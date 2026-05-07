@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Star, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { createReview, updateOrderHasReview } from '../services';
+import { createReview } from '../services';
 
 export function ReviewPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -14,14 +14,14 @@ export function ReviewPage() {
   const [error, setError] = useState('');
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
 
-  useState(() => {
+  useEffect(() => {
     const fetchOrder = async () => {
       if (!orderId) return;
       const { data } = await supabase.from('orders').select('restaurant_id').eq('id', orderId).single();
       if (data) setRestaurantId(data.restaurant_id);
     };
     fetchOrder();
-  });
+  }, [orderId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

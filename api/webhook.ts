@@ -1,29 +1,57 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import Stripe from 'https://esm.sh/stripe@14.21.0';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 
-const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY') || '';
-const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') || '';
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
-const stripe = new Stripe(stripeSecretKey);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!stripeSecretKey || !stripeWebhookSecret || !supabaseUrl || !supabaseServiceKey) {
+  throw new Error(
+    'Missing required environment variables: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY'
+  );
+}
+
+const stripe = new Stripe(stripeSecretKey, {
+  apiVersion: '2025-03-31.basil',
+});
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-serve(async (req) => {
-  const signature = req.headers.get('stripe-signature');
-  
-  if (!signature) {
-    return new Response('No signature', { status: 400 });
+const readRawBody = async (req: VercelRequest): Promise<Buffer> => {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+
+  return Buffer.concat(chunks);
+};
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const signature = req.headers['stripe-signature'];
+  if (!signature || Array.isArray(signature)) {
+    return res.status(400).json({ error: 'Missing stripe signature' });
   }
 
   try {
-    const body = await req.text();
+    const body = await readRawBody(req);
     const event = stripe.webhooks.constructEvent(body, signature, stripeWebhookSecret);
 
     switch (event.type) {
       case 'payment_intent.succeeded': {
-        const paymentIntent = event.data.object;
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const orderId = paymentIntent.metadata.orderId;
 
         if (orderId) {
@@ -40,7 +68,7 @@ serve(async (req) => {
       }
 
       case 'payment_intent.payment_failed': {
-        const paymentIntent = event.data.object;
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const orderId = paymentIntent.metadata.orderId;
 
         if (orderId) {
@@ -56,18 +84,12 @@ serve(async (req) => {
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        break;
     }
 
-    return new Response(JSON.stringify({ received: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(400).json({ error: message });
   }
-});
+}

@@ -53,10 +53,10 @@ export function PaymentForm({ amount, onSuccess, onError }: PaymentFormProps) {
           cvc,
         },
         billing_details: { name },
-      });
+      } as any);
 
       if (error) {
-        onError(error.message);
+        onError(error.message || 'Payment failed');
         return;
       }
 

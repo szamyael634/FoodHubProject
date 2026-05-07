@@ -4,11 +4,8 @@
   "framework": "vite",
   "installCommand": "npm install",
   "functions": {
-    "api/create-payment-intent.ts": {
-      "runtime": "deno"
-    },
-    "api/webhook.ts": {
-      "runtime": "deno"
+    "api/*.ts": {
+      "runtime": "nodejs20.x"
     }
   },
   "env": {
