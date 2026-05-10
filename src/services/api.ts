@@ -197,7 +197,7 @@ export const updateOrderHasReview = async (orderId: string) => {
     .from('orders')
     .update({ has_review: true })
     .eq('id', orderId);
-  if (error) throw error || [];
+  if (error) throw error;
 };
 
 export const getAvailableOrdersForDrivers = async (): Promise<Order[]> => {
@@ -206,11 +206,12 @@ export const getAvailableOrdersForDrivers = async (): Promise<Order[]> => {
     .select('*')
     .in('status', ['confirmed', 'ready'])
     .is('driver_id', null)
-    .order('created_at',ending: false });
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
 };
-Real-time subscription helper
+
+// Real-time subscription helpers
 export const subscribeToNotifications = (userId: string, callback: (notification: Notification) => void) => {
   const channel = supabase
     .channel(`notifications:${userId}`)
@@ -219,8 +220,7 @@ export const subscribeToNotifications = (userId: string, callback: (notification
       {
         event: 'INSERT',
         schema: 'public',
-
-//         table: 'notifications',
+        table: 'notifications',
         filter: `user_id=eq.${userId}`,
       },
       (payload) => {
@@ -252,7 +252,6 @@ export const subscribeToOrderUpdates = (orderId: string, callback: (order: Order
   return channel;
 };
 
-// 
 // Reviews API functions
 export const getReviews = async (restaurantId: string): Promise<Review[]> => {
   const { data, error } = await supabase
@@ -271,6 +270,15 @@ export const createReview = async (review: Omit<Review, 'id' | 'created_at'>) =>
     .select()
     .single();
   if (error) throw error;
+
+  // Update order has_review status
+  if (review.order_id) {
+    await supabase
+      .from('orders')
+      .update({ has_review: true })
+      .eq('id', review.order_id);
+  }
+
   return data;
 };
 
@@ -279,15 +287,6 @@ export const getNotifications = async (userId: string): Promise<Notification[]> 
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
-  
-  // Update order has_review status
-  if (review.order_id) {
-    await supabase
-      .from('orders')
-      .update({ has_review: true })
-      .eq('id', review.order_id);
-  }
-  
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
